@@ -3,9 +3,6 @@
 /_output*/
 /_output
 
-# docker build
-/deploy/docker/rbdplugin
-
 # Emacs save files
 *~
 \#*\#
@@ -22,3 +19,6 @@ Session.vim
 *.orig
 *.patch
 *.rej
+
+# docker temp files
+/deploy/docker/webhook

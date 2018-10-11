@@ -23,9 +23,9 @@ var (
 )
 
 type Config struct {
-	Name    string             `"yaml: name"`
-	Label   string             `"yaml: label"`
-	Aliases []coreV1.HostAlias `"yaml: hostAliases"`
+	Name    string             `yaml:"name"`
+	Label   string             `yaml:"label"`
+	Aliases []coreV1.HostAlias `yaml:"hostAliases"`
 }
 
 type Controller struct {
@@ -109,7 +109,7 @@ func (c *Controller) addPod(pod *coreV1.Pod) error {
 				glog.V(5).Infof("labels %+v", labels)
 				app, ok := labels["app"]
 				if ok {
-					aliases := c.getAliases(app)
+					aliases := GetAliases(app, *c.config)
 					if len(aliases) > 0 {
 						pod.Spec.HostAliases = append(pod.Spec.HostAliases, aliases...)
 					}
@@ -124,14 +124,5 @@ func (c *Controller) addPod(pod *coreV1.Pod) error {
 		}
 	}
 
-	return nil
-}
-
-func (c *Controller) getAliases(app string) []coreV1.HostAlias {
-	for _, conf := range *c.config {
-		if conf.Label == app {
-			return conf.Aliases
-		}
-	}
 	return nil
 }
