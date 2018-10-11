@@ -1,9 +1,7 @@
 package controller
 
 import (
-	"encoding/json"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -19,33 +17,27 @@ import (
 )
 
 var (
-	PVAnnotation            string
 	IntializerConfigmapName string
 	InitializerName         string
 	IntializerNamespace     string
 )
 
 type Config struct {
-	Name       string `"yaml: name"`
-	Label      string `"yaml: label"`
-	Attributes string `"yaml: attributes"`
+	Name    string             `"yaml: name"`
+	Label   string             `"yaml: label"`
+	Aliases []coreV1.HostAlias `"yaml: hostAliases"`
 }
 
 type Controller struct {
 	clientset     *kubernetes.Clientset
-	podPVCMap     map[string]string
-	podPVCLock    *sync.Mutex
 	podController cache.Controller
-	pvcController cache.Controller
 	config        *[]Config
 }
 
-func NewPVInitializer(clientset *kubernetes.Clientset, conf *[]Config) *Controller {
+func NewHostAliasesInitializer(clientset *kubernetes.Clientset, conf *[]Config) *Controller {
 	c := &Controller{
-		config:     conf,
-		clientset:  clientset,
-		podPVCMap:  make(map[string]string),
-		podPVCLock: &sync.Mutex{},
+		config:    conf,
+		clientset: clientset,
 	}
 
 	restClient := clientset.CoreV1().RESTClient()
@@ -82,27 +74,6 @@ func NewPVInitializer(clientset *kubernetes.Clientset, conf *[]Config) *Controll
 	)
 	c.podController = podController
 
-	pvcListWatcher := cache.NewListWatchFromClient(
-		restClient,
-		"persistentvolumeclaims",
-		coreV1.NamespaceAll,
-		fields.Everything())
-
-	_, pvcController := cache.NewInformer(
-		pvcListWatcher,
-		&coreV1.PersistentVolumeClaim{},
-		resyncPeriod,
-		cache.ResourceEventHandlerFuncs{
-			UpdateFunc: func(old, new interface{}) {
-				err := c.updatePVC(old.(*coreV1.PersistentVolumeClaim), new.(*coreV1.PersistentVolumeClaim))
-				if err != nil {
-					glog.Warningf("failed to initialized: %v", err)
-					return
-				}
-			},
-		},
-	)
-	c.pvcController = pvcController
 	return c
 }
 
@@ -115,16 +86,6 @@ func (c *Controller) Run(ctx <-chan struct{}) {
 	})
 	if !c.podController.HasSynced() {
 		glog.Errorf("pod informer controller initial sync timeout")
-		os.Exit(1)
-	}
-	glog.Infof("pvc controller starting")
-	go c.pvcController.Run(ctx)
-	glog.Infof("Waiting for pvc informer initial sync")
-	wait.Poll(time.Second, 5*time.Minute, func() (bool, error) {
-		return c.pvcController.HasSynced(), nil
-	})
-	if !c.pvcController.HasSynced() {
-		glog.Errorf("pvc informer controller initial sync timeout")
 		os.Exit(1)
 	}
 }
@@ -148,26 +109,9 @@ func (c *Controller) addPod(pod *coreV1.Pod) error {
 				glog.V(5).Infof("labels %+v", labels)
 				app, ok := labels["app"]
 				if ok {
-					attr := c.getAttributes(app)
-					if len(attr) > 0 {
-						vols := pod.Spec.Volumes
-						for _, vol := range vols {
-							if vol.VolumeSource.PersistentVolumeClaim != nil {
-								pvcName := vol.VolumeSource.PersistentVolumeClaim.ClaimName
-								glog.V(3).Infof("PVC %s", pvcName)
-								pvc, err := c.clientset.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(pvcName, metaV1.GetOptions{})
-								if err == nil {
-									// if PVC is bound, update PV.
-									pvName := pvc.Spec.VolumeName
-									if len(pvName) > 0 {
-										c.updatePVAnnotation(pvName, attr)
-									} else {
-										// defer till PVC is bound
-										c.updatePodPVCMap(pod.Namespace, pvcName, attr, true /* toAdd */)
-									}
-								}
-							}
-						}
+					aliases := c.getAliases(app)
+					if len(aliases) > 0 {
+						pod.Spec.HostAliases = append(pod.Spec.HostAliases, aliases...)
 					}
 				}
 			}
@@ -183,95 +127,11 @@ func (c *Controller) addPod(pod *coreV1.Pod) error {
 	return nil
 }
 
-func (c *Controller) updatePVAnnotation(pvName, data string) {
-	pv, err := c.clientset.CoreV1().PersistentVolumes().Get(pvName, metaV1.GetOptions{})
-	if err == nil {
-		glog.V(3).Infof("update PV %s", pv.Name)
-		ann := pv.ObjectMeta.GetAnnotations()
-		if ann == nil {
-			var m map[string]string
-			m[PVAnnotation] = data
-			pv.ObjectMeta.SetAnnotations(m)
-		} else {
-			existingAnn := ann[PVAnnotation]
-			if len(existingAnn) == 0 {
-				// annotation doesn't exist, just add
-				ann[PVAnnotation] = data
-			} else {
-				// append to existing annotation
-				attrs := map[string]interface{}{}
-				existingAttrs := map[string]interface{}{}
-				glog.V(5).Infof("updating %s with %s", existingAnn, data)
-				err1 := json.Unmarshal([]byte(data), &attrs)
-				err2 := json.Unmarshal([]byte(existingAnn), &existingAttrs)
-				if err1 == nil && err2 == nil {
-					for k, v := range attrs {
-						glog.V(5).Infof("add %v %v", k, v)
-						existingAttrs[k] = v
-					}
-					newAnn, err := json.Marshal(existingAttrs)
-					if err == nil {
-						ann[PVAnnotation] = string(newAnn)
-					}
-				}
-			}
-			glog.V(3).Infof("updating with new annotation %+v", ann)
-			pv.ObjectMeta.SetAnnotations(ann)
-		}
-		_, err := c.clientset.CoreV1().PersistentVolumes().Update(pv)
-		if err != nil {
-			glog.Warningf("failed to update pv :%v", err)
-		}
-	}
-}
-
-func (c *Controller) updatePVC(oldPVC, newPVC *coreV1.PersistentVolumeClaim) error {
-	ns := newPVC.Namespace
-	name := newPVC.Name
-
-	if data := c.getPodPVCMap(ns, name); len(data) > 0 {
-		// if pvc is bound and pv exists, update pv annotation
-		if newPVC.Status.Phase == coreV1.ClaimBound {
-			pvName := newPVC.Spec.VolumeName
-			if len(pvName) > 0 {
-				c.updatePVAnnotation(pvName, data)
-				c.updatePodPVCMap(ns, name, "", false /* toAdd */)
-			}
-		}
-	}
-
-	return nil
-}
-
-func (c *Controller) updatePodPVCMap(pvcNS, pvcName, attr string, toAdd bool) {
-	c.podPVCLock.Lock()
-	defer c.podPVCLock.Unlock()
-	key := pvcNS + "/" + pvcName
-	glog.V(5).Infof("updating map: %s/%s with %s %v", pvcNS, pvcName, attr, toAdd)
-	if toAdd {
-		c.podPVCMap[key] = attr
-	} else {
-		delete(c.podPVCMap, key)
-	}
-}
-
-func (c *Controller) getPodPVCMap(pvcNS, pvcName string) string {
-	c.podPVCLock.Lock()
-	defer c.podPVCLock.Unlock()
-	key := pvcNS + "/" + pvcName
-	glog.V(5).Infof("get map: %s/%s", pvcNS, pvcName)
-	val, ok := c.podPVCMap[key]
-	if ok {
-		return val
-	}
-	return ""
-}
-
-func (c *Controller) getAttributes(app string) string {
+func (c *Controller) getAliases(app string) []coreV1.HostAlias {
 	for _, conf := range *c.config {
 		if conf.Label == app {
-			return conf.Attributes
+			return conf.Aliases
 		}
 	}
-	return ""
+	return nil
 }

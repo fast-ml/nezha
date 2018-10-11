@@ -19,9 +19,8 @@ import (
 )
 
 const (
-	defaultPVAnnotation       = "csi.volume.kubernetes.io/volume-attributes"
-	defaultInitializerName    = "pv.initializer.kubernetes.io"
-	defaultConfigmapName      = "pv-initializer"
+	defaultInitializerName    = "hostaliases.initializer.kubernetes.io"
+	defaultConfigmapName      = "hostaliases-initializer"
 	defaultConfigMapNamespace = "default"
 )
 
@@ -31,7 +30,6 @@ var (
 )
 
 func main() {
-	flag.StringVar(&controller.PVAnnotation, "pv-annotation", defaultPVAnnotation, "PersistentVolume Annotation to patch")
 	flag.StringVar(&controller.IntializerConfigmapName, "configmap", defaultConfigmapName, "storage initializer configuration configmap")
 	flag.StringVar(&controller.InitializerName, "initializer-name", defaultInitializerName, "The initializer name")
 	flag.StringVar(&controller.IntializerNamespace, "namespace", defaultConfigMapNamespace, "The configuration namespace")
@@ -65,7 +63,7 @@ func main() {
 	if err != nil {
 		glog.Fatalf("failed to parse configmap: %v", err)
 	}
-	ctrl := controller.NewPVInitializer(clientset, conf)
+	ctrl := controller.NewHostAliasesInitializer(clientset, conf)
 	if ctrl == nil {
 		glog.Fatal("failed to create initializer")
 	}
