@@ -12,33 +12,6 @@ spec:
     app: hostaliases-injector
 ---
 apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: hostaliases-webhook-sa
----
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: hostaliases-webhook-role
-rules:
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list"]
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: hostaliases-webhook-runner-rolebinding
-subjects:
-  - kind: ServiceAccount
-    name: hostaliases-webhook-sa
-    namespace: default
-roleRef:
-  kind: Role
-  name: hostaliases-webhook-role
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: hostaliases-config
@@ -69,7 +42,6 @@ spec:
       labels:
         app: hostaliases-injector
     spec:
-      serviceAccount: hostaliases-webhook-sa
       containers:        
         - name: hostaliases-injector
           image: mira062.front.sepia.ceph.com/root/webhook #docker.io/rootfs/hostaliases-injector:latest
@@ -77,17 +49,22 @@ spec:
           args:
             - -tls-cert-file=/etc/webhook/certs/cert.pem
             - -tls-private-key-file=/etc/webhook/certs/key.pem
-            - -configmap-name=hostaliases-config
-            - -configmap-namespace=default
+            - -config-file=/etc/webhook/config
             - -v=5
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
               readOnly: true
+            - name: webhook-config
+              mountPath: /etc/webhook/
+              readOnly: true              
       volumes:
            - name: webhook-certs
              secret:
                secretName: hostaliases-injector-webhook-certs
+           - name: webhook-config
+             configMap:
+               name: hostaliases-config
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration

@@ -16,27 +16,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-)
-
-const (
-	defaultInitializerName    = "hostaliases.initializer.kubernetes.io"
-	defaultConfigmapName      = "hostaliases-initializer"
-	defaultConfigMapNamespace = "default"
 )
 
 var (
-	kubeConfig         string
-	kubeMaster         string
-	configmapName      string
-	configmapNamespace string
-	useTLS             *bool
-	runtimeScheme      = runtime.NewScheme()
-	codecs             = serializer.NewCodecFactory(runtimeScheme)
-	deserializer       = codecs.UniversalDeserializer()
-	hostAliasConf      *[]controller.Config
+	configFile    string
+	useTLS        *bool
+	runtimeScheme = runtime.NewScheme()
+	codecs        = serializer.NewCodecFactory(runtimeScheme)
+	deserializer  = codecs.UniversalDeserializer()
+	hostAliasConf *[]controller.Config
 	// (https://github.com/kubernetes/kubernetes/issues/57982)
 	defaulter                  = runtime.ObjectDefaulter(runtimeScheme)
 	addHostAliasesPatch string = `[{"op": "add", "path": "/spec/template/spec/hostAliases", "value": %s }]`
@@ -49,10 +37,7 @@ type certConfig struct {
 }
 
 func (c *certConfig) addFlags() {
-	flag.StringVar(&configmapName, "configmap-name", defaultConfigmapName, "hostAliases configuration configmap name")
-	flag.StringVar(&configmapNamespace, "configmap-namespace", defaultConfigMapNamespace, "hostAliases configuration namespace")
-	flag.StringVar(&kubeConfig, "kubeconfig", "", "Absolute path to the kubeconfig")
-	flag.StringVar(&kubeMaster, "kubemaster", "", "Kubernetes Controller Master URL")
+	flag.StringVar(&configFile, "config-file", "", "path to hostAliases configuration config file")
 	flag.StringVar(&c.CertFile, "tls-cert-file", c.CertFile, ""+
 		"File containing the default x509 Certificate for HTTPS. (CA cert, if any, concatenated "+
 		"after server cert).")
@@ -66,27 +51,6 @@ func toAdmissionResponse(err error) *v1beta1.AdmissionResponse {
 			Message: err.Error(),
 		},
 	}
-}
-
-// Get a clientset with in-cluster config.
-func getClient() *kubernetes.Clientset {
-	var clusterConfig *rest.Config
-	var err error
-	if len(kubeMaster) > 0 || len(kubeConfig) > 0 {
-		clusterConfig, err = clientcmd.BuildConfigFromFlags(kubeMaster, kubeConfig)
-	} else {
-		clusterConfig, err = rest.InClusterConfig()
-	}
-
-	if err != nil {
-		glog.Fatal(err.Error())
-	}
-
-	clientset, err := kubernetes.NewForConfig(clusterConfig)
-	if err != nil {
-		glog.Fatal(err)
-	}
-	return clientset
 }
 
 func configTLS(config certConfig) *tls.Config {
@@ -196,18 +160,16 @@ func serve(w http.ResponseWriter, r *http.Request, admit admitFunc) {
 
 func main() {
 	var certConfig certConfig
+	var err error
 	certConfig.addFlags()
 	flag.Parse()
 	flag.Set("logtostderr", "true")
-
-	clientset := getClient()
-	cm, err := clientset.CoreV1().ConfigMaps(configmapNamespace).Get(configmapName, metav1.GetOptions{})
-	if err != nil {
-		glog.Fatal(err)
+	if len(configFile) == 0 {
+		glog.Fatalf("hostAliases config file is empty")
 	}
-	hostAliasConf, err = controller.ConfigMapToConfig(cm)
+	hostAliasConf, err = controller.FileToConfig(configFile)
 	if err != nil {
-		glog.Fatalf("failed to parse configmap: %v", err)
+		glog.Fatalf("failed to parse config file: %v", err)
 	}
 	http.HandleFunc("/mutate", serveMutateDeployments)
 	server := &http.Server{
@@ -215,5 +177,4 @@ func main() {
 		TLSConfig: configTLS(certConfig),
 	}
 	server.ListenAndServeTLS("", "")
-
 }
