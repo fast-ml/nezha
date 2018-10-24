@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/golang/glog"
 
@@ -171,10 +172,27 @@ func main() {
 	if err != nil {
 		glog.Fatalf("failed to parse config file: %v", err)
 	}
+
+	tickChan := time.NewTicker(time.Second * 10).C
+	go func() {
+		for {
+			select {
+			case <-tickChan:
+				newConfig, err := controller.FileToConfig(configFile)
+				if err == nil {
+					hostAliasConf = newConfig
+				} else {
+					glog.Warningf("invalid config: %v", err)
+				}
+			}
+		}
+	}()
+
 	http.HandleFunc("/mutate", serveMutateDeployments)
 	server := &http.Server{
 		Addr:      ":443",
 		TLSConfig: configTLS(certConfig),
 	}
+	glog.Infof("starting server")
 	server.ListenAndServeTLS("", "")
 }
