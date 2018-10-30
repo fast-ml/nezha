@@ -4,7 +4,7 @@ metadata:
   name: pod-config
 initializers:
   # the name needs to be fully qualified, i.e., containing at least two "."
-  - name: pv.initializer.kubernetes.io
+  - name: hostaliases.initializer.kubernetes.io
     rules:
       # apiGroups, apiVersion, resources all support wildcard "*".
       # "*" cannot be mixed with non-wildcard.

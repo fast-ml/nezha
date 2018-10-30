@@ -26,16 +26,29 @@
 
 
 [[constraint]]
-  branch = "master"
+  version = "kubernetes-1.11.3"
   name = "k8s.io/api"
 
 [[constraint]]
-  branch = "master"
+  version = "kubernetes-1.11.3"
   name = "k8s.io/apimachinery"
 
 [[constraint]]
   name = "k8s.io/client-go"
-  version = "6.0.0"
+  version = "v8.0.0"
+
+[[constraint]]
+  version = "kubernetes-1.11.3"
+  name = "k8s.io/apiextensions-apiserver"
+
+[[constraint]]
+  branch = "release-1.11"
+  name = "k8s.io/kubernetes"
+
+# Fix: vendor/k8s.io/kubernetes/pkg/util/parsers/parsers.go:36:16: undefined: reference.ParseNormalizedNamed
+[[override]]
+  name = "github.com/docker/distribution"
+  branch = "master"
 
 [prune]
   go-tests = true

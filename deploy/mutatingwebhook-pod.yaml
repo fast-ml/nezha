@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hostaliases-injector-webhook-svc
+  labels:
+    app: hostaliases-injector
+spec:
+  ports:
+  - port: 443
+    targetPort: 443
+  selector:
+    app: hostaliases-injector
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hostaliases-config
+data:
+  config: |
+      - name: application
+        label: application
+        hostAliases:
+        - ip: "127.0.0.1"
+          hostnames:
+          - "foo.local"
+          - "bar.local"
+        - ip: "10.1.2.3"
+          hostnames:
+          - "foo.remote"
+          - "bar.remote"
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: hostaliases-injector-webhook-deployment
+  labels:
+    app: hostaliases-injector
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: hostaliases-injector
+    spec:
+      containers:        
+        - name: hostaliases-injector
+          image: mira062.front.sepia.ceph.com/root/webhook #docker.io/rootfs/hostaliases-injector:latest
+          imagePullPolicy: Always
+          args:
+            - -tls-cert-file=/etc/webhook/certs/cert.pem
+            - -tls-private-key-file=/etc/webhook/certs/key.pem
+            - -config-file=/etc/webhook/config
+            - -v=5
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+            - name: webhook-config
+              mountPath: /etc/webhook/
+              readOnly: true              
+      volumes:
+           - name: webhook-certs
+             secret:
+               secretName: hostaliases-injector-webhook-certs
+           - name: webhook-config
+             configMap:
+               name: hostaliases-config
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: hostaliases-webhook-cfg
+  labels:
+    app: hostaliases-injector
+webhooks:
+  - name: hostaliases-injector.webhook.io
+    clientConfig:
+      service:
+        name: hostaliases-injector-webhook-svc
+        namespace: default
+        path: "/mutate"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRFNE1UQXdNVEUyTXpJMU5Wb1hEVEk0TURreU9ERTJNekkxTlZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBSzloCkM3dU50ZUNpcnZCeUZheVdqRnQwZm5EZUhWNk1DaFhqQW9ydTRYNmFaL0lkZnlucU5oamVQd1hoaGU1UXdxY2MKTlRxd3ZYSGFwSTI0aHlyK0hJRFc2aDQ3ZUxhNGczMUkzMTFJd2NOSkVJNjFaVTlFTCs5aTFGVkJRRmw2eWFJRAphZHBpOCtCVEVIUGhGKzZ1WTM5QmZUcTZxTmhTZGRxZm1CMEFYWFNGMW53VVlLSXp4OWFTSGFvZmVnZUdsbHRjCmpYNHNPck9kOWNHZ3k3a0t4Y1ZjOHdveDhVV1RMVDRYNzd1U204WG9pVmZYMnRHT0lHVmhDQk1wejl3MXNLKy8KZXFLNTRGSW5EcTI1NDIveGE1NUU5TE4yZVZVRGdFanRhZ1Q1a3NpV09HSmlxN3ZvRFlQbkFYZlU3YnpIN2M0Ugp0MytpMEx3Q0V0aDVMTldnU09NQ0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFEM0NpcXJQVDhZR09JcDR6bjl0UWtwT0Nja2EKb3lwRldUTE5iY3NkZFFHb2V1cE56bWMxYXhpbld1R2I2Y2NNZHV4YnI3b1J3REpNTExlUHJ6SHVIelZId0xhcwpZajNUM0krUlBoZzZPVmk0UkZpRWUvUDhDWWk1VWFkeWgvRCsrRE1Tb01qaUZyNVpOVmRRMmVtaGpnYTJoc3pvCm9GYmNYL1luaDVsb2I5Y2VON2NFL0R4YVAvOXZqa21PUnJ1MEJhZzMvVnZKNkFOcit3ZnZqYlltbEJPYjFiOWUKU1RpMXV0TUFrbFFUMzNXeVdZK0lOSWlaa3pWY29ET2h3R2lxdDdUTGhLdEpSdk10YzZkWlJxODNZd1ZaeHE5RQpWaGxEWHdYd3ZCWUpwbE0yMWtmZEwrR3dDVGNBKzBHWVUwd3VYVnRGOEIvQ1RtUit3WVV0S09sSmdrQT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    rules:
+      - operations:  [ "CREATE" ]
+        apiGroups:   ["extensions"]
+        apiVersions: ["v1beta1"]
+        resources:   ["deployments"]
+    namespaceSelector:
+      matchLabels:
+        hostaliases-injector: enabled
+
