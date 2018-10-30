@@ -15,7 +15,7 @@ before_script:
 script:
   - test -z $(gofmt -s -l $GO_FILES)
   - go vet -v $(go list ./... | grep -v /vendor/)
-  - make container
+  - make all
 
 deploy:
   - provider: script
