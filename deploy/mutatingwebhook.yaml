@@ -69,16 +69,16 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: hostaliases-webhook-cfg
+  name: hostaliases-webhook-cfg-dp
   labels:
-    app: hostaliases-injector
+    app: hostaliases-injector-dp
 webhooks:
-  - name: hostaliases-injector.webhook.io
+  - name: hostaliases-injector-dp.webhook.io
     clientConfig:
       service:
         name: hostaliases-injector-webhook-svc
         namespace: default
-        path: "/mutate"
+        path: "/mutate-deployment"
       caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRFNE1UQXdNVEUyTXpJMU5Wb1hEVEk0TURreU9ERTJNekkxTlZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBSzloCkM3dU50ZUNpcnZCeUZheVdqRnQwZm5EZUhWNk1DaFhqQW9ydTRYNmFaL0lkZnlucU5oamVQd1hoaGU1UXdxY2MKTlRxd3ZYSGFwSTI0aHlyK0hJRFc2aDQ3ZUxhNGczMUkzMTFJd2NOSkVJNjFaVTlFTCs5aTFGVkJRRmw2eWFJRAphZHBpOCtCVEVIUGhGKzZ1WTM5QmZUcTZxTmhTZGRxZm1CMEFYWFNGMW53VVlLSXp4OWFTSGFvZmVnZUdsbHRjCmpYNHNPck9kOWNHZ3k3a0t4Y1ZjOHdveDhVV1RMVDRYNzd1U204WG9pVmZYMnRHT0lHVmhDQk1wejl3MXNLKy8KZXFLNTRGSW5EcTI1NDIveGE1NUU5TE4yZVZVRGdFanRhZ1Q1a3NpV09HSmlxN3ZvRFlQbkFYZlU3YnpIN2M0Ugp0MytpMEx3Q0V0aDVMTldnU09NQ0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFEM0NpcXJQVDhZR09JcDR6bjl0UWtwT0Nja2EKb3lwRldUTE5iY3NkZFFHb2V1cE56bWMxYXhpbld1R2I2Y2NNZHV4YnI3b1J3REpNTExlUHJ6SHVIelZId0xhcwpZajNUM0krUlBoZzZPVmk0UkZpRWUvUDhDWWk1VWFkeWgvRCsrRE1Tb01qaUZyNVpOVmRRMmVtaGpnYTJoc3pvCm9GYmNYL1luaDVsb2I5Y2VON2NFL0R4YVAvOXZqa21PUnJ1MEJhZzMvVnZKNkFOcit3ZnZqYlltbEJPYjFiOWUKU1RpMXV0TUFrbFFUMzNXeVdZK0lOSWlaa3pWY29ET2h3R2lxdDdUTGhLdEpSdk10YzZkWlJxODNZd1ZaeHE5RQpWaGxEWHdYd3ZCWUpwbE0yMWtmZEwrR3dDVGNBKzBHWVUwd3VYVnRGOEIvQ1RtUit3WVV0S09sSmdrQT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
     rules:
       - operations:  [ "CREATE" ]
@@ -89,3 +89,26 @@ webhooks:
       matchLabels:
         hostaliases-injector: enabled
 
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: hostaliases-webhook-cfg-job
+  labels:
+    app: hostaliases-injector-dp
+webhooks:
+  - name: hostaliases-injector-job.webhook.io
+    clientConfig:
+      service:
+        name: hostaliases-injector-webhook-svc
+        namespace: default
+        path: "/mutate-job"
+      caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRFNE1UQXdNVEUyTXpJMU5Wb1hEVEk0TURreU9ERTJNekkxTlZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBSzloCkM3dU50ZUNpcnZCeUZheVdqRnQwZm5EZUhWNk1DaFhqQW9ydTRYNmFaL0lkZnlucU5oamVQd1hoaGU1UXdxY2MKTlRxd3ZYSGFwSTI0aHlyK0hJRFc2aDQ3ZUxhNGczMUkzMTFJd2NOSkVJNjFaVTlFTCs5aTFGVkJRRmw2eWFJRAphZHBpOCtCVEVIUGhGKzZ1WTM5QmZUcTZxTmhTZGRxZm1CMEFYWFNGMW53VVlLSXp4OWFTSGFvZmVnZUdsbHRjCmpYNHNPck9kOWNHZ3k3a0t4Y1ZjOHdveDhVV1RMVDRYNzd1U204WG9pVmZYMnRHT0lHVmhDQk1wejl3MXNLKy8KZXFLNTRGSW5EcTI1NDIveGE1NUU5TE4yZVZVRGdFanRhZ1Q1a3NpV09HSmlxN3ZvRFlQbkFYZlU3YnpIN2M0Ugp0MytpMEx3Q0V0aDVMTldnU09NQ0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFEM0NpcXJQVDhZR09JcDR6bjl0UWtwT0Nja2EKb3lwRldUTE5iY3NkZFFHb2V1cE56bWMxYXhpbld1R2I2Y2NNZHV4YnI3b1J3REpNTExlUHJ6SHVIelZId0xhcwpZajNUM0krUlBoZzZPVmk0UkZpRWUvUDhDWWk1VWFkeWgvRCsrRE1Tb01qaUZyNVpOVmRRMmVtaGpnYTJoc3pvCm9GYmNYL1luaDVsb2I5Y2VON2NFL0R4YVAvOXZqa21PUnJ1MEJhZzMvVnZKNkFOcit3ZnZqYlltbEJPYjFiOWUKU1RpMXV0TUFrbFFUMzNXeVdZK0lOSWlaa3pWY29ET2h3R2lxdDdUTGhLdEpSdk10YzZkWlJxODNZd1ZaeHE5RQpWaGxEWHdYd3ZCWUpwbE0yMWtmZEwrR3dDVGNBKzBHWVUwd3VYVnRGOEIvQ1RtUit3WVV0S09sSmdrQT0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    rules:
+      - operations:  [ "CREATE" ]
+        apiGroups:   ["batch"]
+        apiVersions: ["v1"]
+        resources:   ["jobs"]
+    namespaceSelector:
+      matchLabels:
+        hostaliases-injector: enabled
