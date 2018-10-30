@@ -13,6 +13,7 @@ import (
 
 	"github.com/fast-ml/nezha/pkg/controller"
 	"k8s.io/api/admission/v1beta1"
+	batch "k8s.io/api/batch/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -108,10 +109,56 @@ func mutateDeployments(ar v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	return &reviewResponse
 }
 
+func mutateJobs(ar v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
+	glog.V(2).Info("mutating jobs")
+	jobResource := metav1.GroupVersionResource{Group: "batch", Version: "v1", Resource: "jobs"}
+	if ar.Request.Resource != jobResource {
+		glog.Errorf("expect resource to be %s", jobResource)
+		return nil
+	}
+
+	raw := ar.Request.Object.Raw
+	job := batch.Job{}
+	deserializer := codecs.UniversalDeserializer()
+	if _, _, err := deserializer.Decode(raw, nil, &job); err != nil {
+		glog.Error(err)
+		return toAdmissionResponse(err)
+	}
+	reviewResponse := v1beta1.AdmissionResponse{}
+	reviewResponse.Allowed = true
+	if labels := job.ObjectMeta.GetLabels(); len(labels) > 0 {
+		glog.V(5).Infof("labels %v", labels)
+		app, ok := labels["app"]
+		if ok {
+			aliases := controller.GetAliases(app, *hostAliasConf)
+			if len(aliases) > 0 {
+				spec := job.Spec.Template.Spec
+				if len(spec.HostAliases) > 0 {
+					aliases = append(spec.HostAliases, aliases...)
+				}
+				glog.V(5).Infof("app %v, hosts %v", app, aliases)
+				js, err := json.Marshal(aliases)
+				if err == nil {
+					patch := fmt.Sprintf(addHostAliasesPatch, js)
+					glog.V(5).Infof("patch %s", patch)
+					reviewResponse.Patch = []byte(patch)
+					pt := v1beta1.PatchTypeJSONPatch
+					reviewResponse.PatchType = &pt
+				}
+			}
+		}
+	}
+	return &reviewResponse
+}
+
 type admitFunc func(v1beta1.AdmissionReview) *v1beta1.AdmissionResponse
 
 func serveMutateDeployments(w http.ResponseWriter, r *http.Request) {
 	serve(w, r, mutateDeployments)
+}
+
+func serveMutateJobs(w http.ResponseWriter, r *http.Request) {
+	serve(w, r, mutateJobs)
 }
 
 func serve(w http.ResponseWriter, r *http.Request, admit admitFunc) {
@@ -188,7 +235,8 @@ func main() {
 		}
 	}()
 
-	http.HandleFunc("/mutate", serveMutateDeployments)
+	http.HandleFunc("/mutate-deployment", serveMutateDeployments)
+	http.HandleFunc("/mutate-job", serveMutateJobs)
 	server := &http.Server{
 		Addr:      ":443",
 		TLSConfig: configTLS(certConfig),
