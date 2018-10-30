@@ -6,11 +6,11 @@ all: initializer webhook
 
 initializer:
 	if [ ! -d ./vendor ]; then dep ensure; fi
-	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -i -o  _output/initializer app/initializer.go
+	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -i -o  _output/initializer app/initializer/initializer.go
 
 webhook:
 	if [ ! -d ./vendor ]; then dep ensure; fi
-	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -i -o  _output/webhook app/webhook.go
+	CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -i -o  _output/webhook app/webhook/webhook.go
 
 deploy_webhook: webhook
 	cp _output/webhook deploy/docker
