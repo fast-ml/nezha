@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy-cache
+  labels:
+    app: proxy-cache
+spec:
+  ports:
+  - port: 80
+    name: http
+  selector:
+    app: proxy-cache
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy-cache
+spec:
+  selector:
+    matchLabels:
+      app: proxy-cache
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: proxy-cache
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+          name: http
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /cfg
+        command:
+          - "nginx"
+        args:
+          - "-c"
+          - "/cfg/nginx.conf"
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: nginx-proxy
