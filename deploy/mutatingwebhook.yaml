@@ -17,17 +17,12 @@ metadata:
   name: hostaliases-config
 data:
   config: |
-      - name: application
-        label: application
+      - name: dataset
+        label: dataset
         hostAliases:
-        - ip: "127.0.0.1"
+        - ip: "1.2.3.4"
           hostnames:
-          - "foo.local"
-          - "bar.local"
-        - ip: "10.1.2.3"
-          hostnames:
-          - "foo.remote"
-          - "bar.remote"
+          - "example.com"
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -44,7 +39,7 @@ spec:
     spec:
       containers:        
         - name: hostaliases-injector
-          image: docker.io/rootfs/hostaliases-webhook:latest
+          image: docker.io/rootfs/hostalias-webhook:latest
           imagePullPolicy: Always
           args:
             - -tls-cert-file=/etc/webhook/certs/cert.pem

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nezha-test
+  labels:
+    hostaliases-injector: enabled
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: dataset
+  name: nezha-job-test
+  namespace: nezha-test
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: wget
+        image: mwendler/wget
+        args: ["http://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"]
+
