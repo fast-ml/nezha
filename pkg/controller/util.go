@@ -22,6 +22,16 @@ func GetAliases(app string, config []Config) []coreV1.HostAlias {
 	return nil
 }
 
+func GetAliasesByKV(k, v string, config []Config) []coreV1.HostAlias {
+	for _, conf := range config {
+		glog.V(5).Infof("looking for %s, %s using %s", k, v, conf.Label)
+		if conf.App == k && conf.Label == v {
+			return conf.Aliases
+		}
+	}
+	return nil
+}
+
 func ConfigMapToConfig(cm *coreV1.ConfigMap) (*[]Config, error) {
 	var c []Config
 	err := yaml.Unmarshal([]byte(cm.Data["config"]), &c)

@@ -9,7 +9,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   labels:
-    app: dataset
+    app.kubernetes.io/deploy-manager: ksonnet
   name: nezha-job-test
   namespace: nezha-test
 spec:
