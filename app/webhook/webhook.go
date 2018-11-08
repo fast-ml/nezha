@@ -86,15 +86,14 @@ func mutateDeployments(ar v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	reviewResponse.Allowed = true
 	if labels := dp.ObjectMeta.GetLabels(); len(labels) > 0 {
 		glog.V(5).Infof("labels %v", labels)
-		app, ok := labels["app"]
-		if ok {
-			aliases := controller.GetAliases(app, *hostAliasConf)
+		for k, v := range labels {
+			aliases := controller.GetAliasesByKV(k, v, *hostAliasConf)
 			if len(aliases) > 0 {
 				spec := dp.Spec.Template.Spec
 				if len(spec.HostAliases) > 0 {
 					aliases = append(spec.HostAliases, aliases...)
 				}
-				glog.V(5).Infof("app %v, hosts %v", app, aliases)
+				glog.V(5).Infof("k: %v, v: %v, hosts %v", k, v, aliases)
 				js, err := json.Marshal(aliases)
 				if err == nil {
 					patch := fmt.Sprintf(addHostAliasesPatch, js)
@@ -128,15 +127,14 @@ func mutateJobs(ar v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	reviewResponse.Allowed = true
 	if labels := job.ObjectMeta.GetLabels(); len(labels) > 0 {
 		glog.V(5).Infof("labels %v", labels)
-		app, ok := labels["app"]
-		if ok {
-			aliases := controller.GetAliases(app, *hostAliasConf)
+		for k, v := range labels {
+			aliases := controller.GetAliasesByKV(k, v, *hostAliasConf)
 			if len(aliases) > 0 {
 				spec := job.Spec.Template.Spec
 				if len(spec.HostAliases) > 0 {
 					aliases = append(spec.HostAliases, aliases...)
 				}
-				glog.V(5).Infof("app %v, hosts %v", app, aliases)
+				glog.V(5).Infof("k: %v, v: %v, hosts %v", k, v, aliases)
 				js, err := json.Marshal(aliases)
 				if err == nil {
 					patch := fmt.Sprintf(addHostAliasesPatch, js)

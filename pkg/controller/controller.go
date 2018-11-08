@@ -24,6 +24,7 @@ var (
 
 type Config struct {
 	Name    string             `yaml:"name"`
+	App     string             `yaml:"app"`
 	Label   string             `yaml:"label"`
 	Aliases []coreV1.HostAlias `yaml:"hostAliases"`
 }

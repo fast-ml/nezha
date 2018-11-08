@@ -26,7 +26,8 @@ metadata:
 data:
   config: |
       - name: dataset
-        label: dataset
+        app: app.kubernetes.io/deploy-manager
+        label: ksonnet
         hostAliases:
         - ip: "${SVC}"
           hostnames:
