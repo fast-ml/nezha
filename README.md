@@ -14,6 +14,40 @@ Once the containers are up and running, S3/GCS/Azure requests are redirected to 
 
 ## Instruction
 
+## Overview
+To use Nezha, you just need to set the host aliases that Nezha acts as a reverse proxy, the Kubernetes Job or Deployment labels that Nezha's Webhook checks before injecting the hostaliases.
+
+In the demo, the hostaliases configmap is as the follow. kubeflow creates Jobs and label them as `app.kubernetes.io/deploy-manager: ksonnet`. That is how the hostaliases configuration below set this label. 
+
+``apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hostaliases-config
+data:
+  config: |
+      - name: dataset
+        app: app.kubernetes.io/deploy-manager
+        label: ksonnet
+`yaml
+```
+
+The hostaliases are retrieved once the reverse proxy service is up. As seen in the [setup.sh scrtip](examples/demo/setup.sh), this is done via
+```bash
+kubectl get svc -n ${NAMESPACE} proxy-cache -o jsonpath={.spec.clusterIP}
+```
+
+Last, the remote servers that are proxy'ed are extracted from nginx configuration via
+```bash
+    SERVERS=$(grep server_name nginx.conf |tr -d ';' |awk '{print $2}')
+```
+
+Putting together, the `setup.sh` script does the following:
+- create nginx service
+- create signed certificates that are used by Webhook's TLS enabled HTTP server
+- create Webhook
+- create a configmap to store configurations for hostaliaes and expected Jobs or Deployments' labels 
+
+
 ## Setup Reverse Proxy Cache Service and Webhook
 
 ```bash
@@ -42,7 +76,7 @@ proxy-cache-655ff74648-bhg6r   1/1     Running   0          17m
 ## Run a test job that downloads MNIST dataset
 
 ```bash
-kubectl apply -f examples/demo/demo-test.yaml
+kubectl apply -f examples/demo/kubeflow-test.yaml
 ```
 The first time to run the test, the log from pod is like:
 
@@ -61,8 +95,8 @@ The first time to run the test, the log from pod is like:
 
 Run the job again:
 ```bash
-kubectl delete -f examples/demo/demo-test.yaml
-kubectl apply -f examples/demo/demo-test.yaml
+kubectl delete -f examples/demo/kubeflow-test.yaml
+kubectl apply -f examples/demo/kubeflow-test.yaml
 ```
 
 Then the file is cached and download is much faster:
