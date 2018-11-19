@@ -19,7 +19,8 @@ To use Nezha, you just need to set the host aliases that Nezha acts as a reverse
 
 In the demo, the hostaliases configmap is as the follow. kubeflow creates Jobs and label them as `app.kubernetes.io/deploy-manager: ksonnet`. That is how the hostaliases configuration below set this label. 
 
-``apiVersion: v1
+```yaml
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: hostaliases-config
@@ -28,7 +29,6 @@ data:
       - name: dataset
         app: app.kubernetes.io/deploy-manager
         label: ksonnet
-`yaml
 ```
 
 The hostaliases are retrieved once the reverse proxy service is up. As seen in the [setup.sh scrtip](examples/demo/setup.sh), this is done via
