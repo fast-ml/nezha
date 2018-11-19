@@ -15,9 +15,9 @@ Once the containers are up and running, S3/GCS/Azure requests are redirected to 
 ## Instruction
 
 ## Overview
-To use Nezha, you just need to set the host aliases that Nezha acts as a reverse proxy, the Kubernetes Job or Deployment labels that Nezha's Webhook checks before injecting the hostaliases.
+Nezha just needs the host aliases that Nezha acts as a reverse proxy, the Kubernetes Job or Deployment labels that Nezha's Webhook checks before injecting the hostaliases.
 
-In the demo, the hostaliases configmap is as the follow. kubeflow creates Jobs and label them as `app.kubernetes.io/deploy-manager: ksonnet`. That is how the hostaliases configuration below set this label. 
+In the demo, the hostaliases configmap is as the follow. kubeflow creates Jobs and labels them as `app.kubernetes.io/deploy-manager: ksonnet`. That is how the hostaliases configuration below sets this label. 
 
 ```yaml
 apiVersion: v1
@@ -73,7 +73,7 @@ proxy-cache-655ff74648-bhg6r   1/1     Running   0          17m
  hostaliases-injector-webhook-deployment-7b66fddb9d-b5xlg   1/1     Running   0          19m
 ```
 
-## Run a test job that downloads MNIST dataset
+## Run a test job that downloads a dataset
 
 ```bash
 kubectl apply -f examples/demo/kubeflow-test.yaml
@@ -92,6 +92,7 @@ The first time to run the test, the log from pod is like:
 
 2018-11-07 19:39:45 (3.49 MB/s) - 'cifar-100-python.tar.gz' saved [169001437/169001437]
 ```
+The download rate is 3.49 MB/s.
 
 Run the job again:
 ```bash
@@ -113,6 +114,12 @@ Then the file is cached and download is much faster:
 
 2018-11-07 19:41:15 (323 MB/s) - 'cifar-100-python.tar.gz' saved [169001437/169001437]
 ```
+
+Download rate is 323 MB/s in the second run.
+
+As observed, once the data is cached, the subsequent download is much faster: 323MB/s vs 3.49MB/s.
+
+In practice, the proxy can run on a PV that has all the needed dataset beforehand. 
 
 ## Clean up Reverse Proxy Cache Service and Webhook
 
