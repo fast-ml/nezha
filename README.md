@@ -51,7 +51,8 @@ Putting together, the `setup.sh` script does the following:
 ## Setup Reverse Proxy Cache Service and Webhook
 
 ```bash
-examples/demo/setup.sh start
+cd examples/demo
+setup.sh start
 ```
 
 You should expect the following service and pod running:
@@ -124,7 +125,8 @@ In practice, the proxy can run on a PV that has all the needed dataset beforehan
 ## Clean up Reverse Proxy Cache Service and Webhook
 
 ```bash
-examples/demo/setup.sh clean
+cd examples/demo
+setup.sh clean
 ```
 
 ## Acknowledgement
